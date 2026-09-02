@@ -81,7 +81,7 @@ stay on the ComfyUI path.
 | Model | Task | Works | Peak VRAM | Notes |
 |---|---|---|---|---|
 | `Tongyi-MAI/Z-Image-Turbo` | t2i | ✅ ~20s/image 1024² | ~24 GB | fits 32 GB GPUs |
-| `Wan-AI/Wan2.2-TI2V-5B-Diffusers` | t2v/i2v | see test log | — | 34 GB weights |
+| `Wan-AI/Wan2.2-TI2V-5B-Diffusers` | t2v/i2v | ✅ 68s for 3s 1280×704@24fps via /v1/videos/sync | — | 34 GB weights |
 | `krea/Krea-2-Turbo` | t2i | untested | — | gated: needs HF_TOKEN |
 | `Lightricks/LTX-2.5-Diffusers` | i2v/t2v | untested | — | 174 GB repo; use distilled variants single-GPU |
 | `MiniMaxAI/MiniMax-H3` | t2v+audio | out of scope | — | 498 GB — multi-GPU/multi-node |
