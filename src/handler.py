@@ -28,15 +28,23 @@ JSON-in/JSON-out is preserved for the queue transport:
     large — prefer the async /v1/videos flow, or configure a network volume
     and fetch via the job-lifecycle routes.
 
-Chat/completions bodies with "stream": true yield raw SSE chunks as they
-arrive (aggregated by the platform unless streaming is requested).
+Chat/completions bodies with "stream": true return the SSE chunks as a list,
+in arrival order.
+
+This handler is deliberately **not** an async generator. The RunPod SDK decides
+by inspecting the function: a generator makes every yield an extra POST to
+`/job-stream`, which rejects a payload the size of a base64 image with a 400 --
+so a plain image request logged a transport error on every job and uploaded its
+result twice. It also wrapped the response in a single-element list. Returning
+one value sends it to `/job-done` only. Real incremental streaming belongs on a
+load-balancer endpoint, which exposes `/v1` directly.
 """
 
 import base64
 import json
 import logging
 import os
-from typing import Any, AsyncGenerator, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 import aiohttp
 
@@ -117,17 +125,15 @@ def _form_from_body(body: dict) -> aiohttp.FormData:
     return form
 
 
-async def handler(job: dict) -> AsyncGenerator[Any, None]:
+async def handler(job: dict) -> Any:
     job_input = job.get("input") or {}
     try:
         route, method, body = _resolve(job_input)
     except ValueError as e:
-        yield {"error": str(e)}
-        return
+        return {"error": str(e)}
 
     if not _is_omni_alive():
-        yield {"error": "vLLM-Omni server process has exited; worker is unhealthy"}
-        return
+        return {"error": "vLLM-Omni server process has exited; worker is unhealthy"}
 
     # Queue transport is JSON, so keep image payloads inline by default.
     if route.endswith("/images/generations") and body is not None:
@@ -151,25 +157,24 @@ async def handler(job: dict) -> AsyncGenerator[Any, None]:
             if resp.status >= 400:
                 text = await resp.text()
                 try:
-                    yield {"error": json.loads(text), "status": resp.status}
+                    return {"error": json.loads(text), "status": resp.status}
                 except json.JSONDecodeError:
-                    yield {"error": text, "status": resp.status}
-                return
+                    return {"error": text, "status": resp.status}
 
             if stream and "text/event-stream" in content_type:
+                chunks = []
                 async for chunk in resp.content:
                     text = chunk.decode("utf-8", errors="replace")
                     if text.strip():
-                        yield text
-                return
+                        chunks.append(text)
+                return chunks
 
             if "application/json" in content_type:
-                yield await resp.json()
-                return
+                return await resp.json()
 
             # Binary payload (video bytes, image files, audio).
             payload = await resp.read()
-            yield {
+            return {
                 "data_b64": base64.b64encode(payload).decode(),
                 "content_type": content_type or "application/octet-stream",
                 "size_bytes": len(payload),

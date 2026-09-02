@@ -13,10 +13,20 @@ COPY src/handler.py /handler.py
 COPY src/main.py /main.py
 
 # Model selection is runtime-only for now: the worker downloads MODEL_NAME from
-# HF at cold start (cache it on a network volume via HF_HOME to make cold
-# starts sane). A bake-the-model build stage like worker-vllm's Option 2 is a
+# HF at cold start. A bake-the-model build stage like worker-vllm's Option 2 is a
 # natural follow-up once the runtime path is proven.
+#
+# The cache paths match worker-vllm exactly, because they are not ours to
+# choose: Runpod mounts a `modelReferences` model under
+# $BASE_PATH/huggingface-cache/hub, and huggingface_hub only finds it if
+# HUGGINGFACE_HUB_CACHE points at that directory. Anything else -- including the
+# obvious $BASE_PATH/huggingface -- means every cold start re-downloads tens of
+# gigabytes that were already on the host.
+ARG BASE_PATH="/runpod-volume"
 ENV VLLM_OMNI_PORT=8091 \
-    HF_HOME=/runpod-volume/huggingface
+    BASE_PATH="${BASE_PATH}" \
+    HF_HOME="${BASE_PATH}/huggingface-cache/hub" \
+    HUGGINGFACE_HUB_CACHE="${BASE_PATH}/huggingface-cache/hub" \
+    HF_DATASETS_CACHE="${BASE_PATH}/huggingface-cache/datasets"
 
 CMD ["python3", "-u", "/main.py"]

@@ -58,7 +58,9 @@ base64-encoded as `<field>_b64`, e.g. `"image_b64": "<base64 png>"`.
   `{"data_b64", "content_type", "size_bytes"}`. Videos are large — for real
   workloads prefer `task: "video_async"` and poll `/v1/videos/{id}` via the
   generic proxy, or front the endpoint with a load balancer (below).
-- `stream: true` chat bodies stream SSE chunks.
+- `stream: true` chat bodies return the SSE chunks as a list, in order. The
+  handler is not a generator on purpose — see the note in `src/handler.py`; for
+  real incremental streaming, front the endpoint with a load balancer (below).
 
 ## Environment variables
 
@@ -74,7 +76,8 @@ base64-encoded as `<field>_b64`, e.g. `"image_b64": "<base64 png>"`.
 | `VLLM_OMNI_PORT` | `8091` | Loopback port for the API server |
 | `OMNI_STARTUP_TIMEOUT` | `1800` | Seconds to wait for model load before failing |
 | `REQUEST_TIMEOUT` | `3600` | Per-request proxy timeout (video gens are minutes) |
-| `HF_HOME` | `/runpod-volume/huggingface` | Attach a network volume to cache weights across cold starts |
+| `BASE_PATH` | `/runpod-volume` | Root of the HF cache. Baked into the image env; matches worker-vllm |
+| `HF_HOME` / `HUGGINGFACE_HUB_CACHE` | `$BASE_PATH/huggingface-cache/hub` | Where weights are cached. This exact path is where Runpod mounts a `modelReferences` model, so leaving it alone is what lets a cold start skip the download |
 | `HF_TOKEN` | — | For gated models (e.g. `krea/Krea-2-Turbo`) |
 
 ## Model support and sizing (validated 2026-09-02, vllm-omni v0.28.0)

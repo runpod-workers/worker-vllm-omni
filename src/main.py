@@ -182,12 +182,7 @@ def main() -> None:
 
     import runpod
 
-    runpod.serverless.start(
-        {
-            "handler": handler.handler,
-            "return_aggregate_stream": True,
-        }
-    )
+    runpod.serverless.start({"handler": handler.handler})
 
 
 if __name__ == "__main__":
