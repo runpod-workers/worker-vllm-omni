@@ -1,0 +1,46 @@
+{
+  "title": "vLLM-Omni",
+  "description": "Serve image, video, and omni models from Hugging Face behind one OpenAI-compatible API",
+  "type": "serverless",
+  "category": "image",
+  "iconUrl": "",
+  "config": {
+    "runsOn": "GPU",
+    "containerDiskInGb": 60,
+    "gpuIds": "ADA_48_PRO",
+    "gpuCount": 1,
+    "allowedCudaVersions": ["12.8", "12.9", "13.0", "13.1", "13.2"],
+    "env": [
+      {
+        "key": "MODEL_NAME",
+        "input": {
+          "name": "Hugging Face model",
+          "type": "string",
+          "description": "HF repo id of a vLLM-Omni supported model (e.g. Tongyi-MAI/Z-Image-Turbo, Wan-AI/Wan2.2-TI2V-5B-Diffusers)",
+          "default": "Tongyi-MAI/Z-Image-Turbo",
+          "advanced": false
+        }
+      },
+      {
+        "key": "HF_TOKEN",
+        "input": {
+          "name": "Hugging Face token",
+          "type": "string",
+          "description": "Required for gated models (e.g. krea/Krea-2-Turbo)",
+          "default": "",
+          "advanced": true
+        }
+      },
+      {
+        "key": "OMNI_EXTRA_ARGS",
+        "input": {
+          "name": "Extra vllm serve args",
+          "type": "string",
+          "description": "Appended to `vllm serve` (e.g. --tensor-parallel-size 2)",
+          "default": "",
+          "advanced": true
+        }
+      }
+    ]
+  }
+}

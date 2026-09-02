@@ -1,0 +1,37 @@
+{
+  "tests": [
+    {
+      "name": "text_to_image_shorthand",
+      "input": {
+        "prompt": "a small robot reading beside a window",
+        "size": "1024x1024",
+        "seed": 42
+      },
+      "timeout": 600000
+    },
+    {
+      "name": "openai_passthrough_images_generations",
+      "input": {
+        "openai_route": "/v1/images/generations",
+        "openai_input": {
+          "prompt": "a cup of coffee on the table",
+          "size": "512x512",
+          "response_format": "b64_json",
+          "seed": 7
+        }
+      },
+      "timeout": 600000
+    }
+  ],
+  "config": {
+    "gpuTypeId": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+    "gpuCount": 1,
+    "env": [
+      {
+        "key": "MODEL_NAME",
+        "value": "Tongyi-MAI/Z-Image-Turbo"
+      }
+    ],
+    "allowedCudaVersions": ["12.8", "12.9", "13.0", "13.1", "13.2"]
+  }
+}

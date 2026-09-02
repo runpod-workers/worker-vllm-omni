@@ -1,0 +1,101 @@
+# worker-vllm-omni
+
+Deploy any [vLLM-Omni-supported](https://vllm-omni.readthedocs.io/en/latest/models/supported_models/)
+image, video, audio, or omni model as a Runpod Serverless endpoint with **one
+standardized, OpenAI-compatible request schema** — the same JSON for every
+model family, the way [worker-vllm](https://github.com/runpod-workers/worker-vllm)
+does it for LLMs.
+
+Set `MODEL_NAME` to a Hugging Face repo id, deploy, and send OpenAI-style
+requests. No workflow JSON, no per-model request formats.
+
+```
+MODEL_NAME=Tongyi-MAI/Z-Image-Turbo        # text-to-image
+MODEL_NAME=Wan-AI/Wan2.2-TI2V-5B-Diffusers # text/image-to-video
+MODEL_NAME=Qwen/Qwen-Image-Edit-2511       # image editing
+```
+
+## Request shapes
+
+Everything goes through the normal Runpod queue API (`/run`, `/runsync`). Three
+input styles, checked in this order:
+
+**1. OpenAI passthrough** (what the platform sends on `/openai/v1/...` routes):
+
+```json
+{"input": {"openai_route": "/v1/images/generations",
+           "openai_input": {"prompt": "a cup of coffee", "size": "1024x1024"}}}
+```
+
+**2. Generic proxy** to any vLLM-Omni route (job polling, model listing, ...):
+
+```json
+{"input": {"route": "/v1/videos/vid_abc123", "method": "GET"}}
+```
+
+**3. Media shorthand** — a bare OpenAI-style body; the route is inferred
+(`messages` → chat, `seconds`/`fps` → video, otherwise image). Force it with
+`"task": "image" | "video" | "video_async" | "image_edit" | "chat" | "speech" | "audio"`:
+
+```json
+{"input": {"prompt": "a small robot reading beside a window",
+           "size": "1024x1024", "seed": 42}}
+```
+
+```json
+{"input": {"task": "video", "prompt": "a mountain lake at sunrise",
+           "size": "1280x704", "seconds": 5}}
+```
+
+Binary uploads on multipart routes (image edits, image-to-video) are passed
+base64-encoded as `<field>_b64`, e.g. `"image_b64": "<base64 png>"`.
+
+## Responses
+
+- Image generations return the OpenAI response JSON (`data[0].b64_json`), plus
+  vLLM-Omni's `metrics` (stage durations, peak VRAM).
+- Binary responses (`/v1/videos/sync`, `response_format: "file"`) return
+  `{"data_b64", "content_type", "size_bytes"}`. Videos are large — for real
+  workloads prefer `task: "video_async"` and poll `/v1/videos/{id}` via the
+  generic proxy, or front the endpoint with a load balancer (below).
+- `stream: true` chat bodies stream SSE chunks.
+
+## Environment variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `MODEL_NAME` | (required) | HF repo id of a vLLM-Omni supported model |
+| `OMNI_EXTRA_ARGS` | — | Extra `vllm serve` args, e.g. `--tensor-parallel-size 2` |
+| `VLLM_OMNI_PORT` | `8091` | Loopback port for the API server |
+| `OMNI_STARTUP_TIMEOUT` | `1800` | Seconds to wait for model load before failing |
+| `REQUEST_TIMEOUT` | `3600` | Per-request proxy timeout (video gens are minutes) |
+| `HF_HOME` | `/runpod-volume/huggingface` | Attach a network volume to cache weights across cold starts |
+| `HF_TOKEN` | — | For gated models (e.g. `krea/Krea-2-Turbo`) |
+
+## Model support and sizing (validated 2026-09-02, vllm-omni v0.28.0)
+
+Coverage is an **allowlist of architectures in diffusers/HF format** — notably
+it does NOT include SD1.5/SDXL/FLUX or single-file community checkpoints; those
+stay on the ComfyUI path.
+
+| Model | Task | Works | Peak VRAM | Notes |
+|---|---|---|---|---|
+| `Tongyi-MAI/Z-Image-Turbo` | t2i | ✅ ~20s/image 1024² | ~24 GB | fits 32 GB GPUs |
+| `Wan-AI/Wan2.2-TI2V-5B-Diffusers` | t2v/i2v | see test log | — | 34 GB weights |
+| `krea/Krea-2-Turbo` | t2i | untested | — | gated: needs HF_TOKEN |
+| `Lightricks/LTX-2.5-Diffusers` | i2v/t2v | untested | — | 174 GB repo; use distilled variants single-GPU |
+| `MiniMaxAI/MiniMax-H3` | t2v+audio | out of scope | — | 498 GB — multi-GPU/multi-node |
+
+## Alternative: load-balancer endpoint
+
+Because vLLM-Omni is a long-lived OpenAI-compatible HTTP server, this image
+also works as a Runpod **load-balancer** endpoint exposing `/v1` directly to
+OpenAI SDK clients (no queue, no base64 wrapping) — start the server on
+`0.0.0.0` and expose the port instead of running the handler. The queue handler
+is the default because it gets scale-to-zero and per-job billing semantics.
+
+## Status
+
+Scaffold — builds untested in CI, hub config skeletal. Validation so far was
+against the stock `vllm/vllm-omni:v0.28.0` image on Runpod pods (RTX PRO 6000,
+CUDA 13.2 host): health, `/v1/images/generations` end-to-end.
