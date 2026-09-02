@@ -88,6 +88,27 @@ HF (FLUX, Krea 2, SD3.5): set HF_TOKEN and accept the license first.
 | `Lightricks/LTX-2.5-Diffusers` | i2v/t2v | untested | — | 174 GB repo; use distilled variants single-GPU |
 | `MiniMaxAI/MiniMax-H3` | t2v+audio | out of scope | — | 498 GB — multi-GPU/multi-node |
 
+## LoRA adapters (validated 2026-09-02)
+
+vLLM-Omni loads diffusion LoRAs natively (`--lora-path`, `--lora-backend
+peft|distill`, `--lora-scale` — pass via `OMNI_EXTRA_ARGS` after downloading
+the adapter). **Support is per-pipeline upstream**, via LoRA loader mixins:
+today that's **Qwen-Image, Wan 2.2 (t2v/i2v), SenseNova U1** (+ LTX two-stage
+configs). Not yet: Z-Image, Krea 2, FLUX-in-omni.
+
+Validated positive: Qwen-Image + `lightx2v/Qwen-Image-Lightning` 4-step LoRA
+(distill backend) — log shows `1440 lora keys loaded into
+QwenImageTransformer2DModel`, and a 1024² generation at
+`num_inference_steps: 4, guidance_scale: 1.0` completes in **4.0s** (~59 GB
+peak VRAM). `num_inference_steps`/`guidance_scale` are accepted in the
+standard images request.
+
+**Silent-failure trap (validated the hard way):** on a pipeline WITHOUT LoRA
+support, the server logs `Pipeline does not support loading distilled LoRA
+weights for now.` and starts anyway — generations silently use the base model
+(byte-identical same-seed outputs). A worker configured with a LoRA MUST
+treat that warning as fatal at startup rather than serve the wrong model.
+
 ## Alternative: load-balancer endpoint
 
 Because vLLM-Omni is a long-lived OpenAI-compatible HTTP server, this image
