@@ -2,3 +2,4 @@
 # the RunPod wrapper adds on top.
 runpod~=1.12.0
 aiohttp>=3.9
+huggingface-hub>=0.24

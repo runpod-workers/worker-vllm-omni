@@ -65,6 +65,11 @@ base64-encoded as `<field>_b64`, e.g. `"image_b64": "<base64 png>"`.
 | Variable | Default | Purpose |
 |---|---|---|
 | `MODEL_NAME` | (required) | HF repo id of a vLLM-Omni supported model |
+| `LORA_REPO` | — | HF repo id of a LoRA adapter to fuse at startup |
+| `LORA_FILE` | — | File or subfolder within `LORA_REPO` (whole repo when unset) |
+| `LORA_PATH` | — | Local adapter path (baked image / network volume) — alternative to `LORA_REPO` |
+| `LORA_BACKEND` | `distill` | `distill` fuses at startup (online-serving mode); `peft` uses the adapter manager |
+| `LORA_SCALE` | — | Passed to `--lora-scale` |
 | `OMNI_EXTRA_ARGS` | — | Extra `vllm serve` args, e.g. `--tensor-parallel-size 2` |
 | `VLLM_OMNI_PORT` | `8091` | Loopback port for the API server |
 | `OMNI_STARTUP_TIMEOUT` | `1800` | Seconds to wait for model load before failing |
