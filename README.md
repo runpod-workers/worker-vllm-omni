@@ -74,9 +74,11 @@ base64-encoded as `<field>_b64`, e.g. `"image_b64": "<base64 png>"`.
 
 ## Model support and sizing (validated 2026-09-02, vllm-omni v0.28.0)
 
-Coverage is an **allowlist of architectures in diffusers/HF format** — notably
-it does NOT include SD1.5/SDXL/FLUX or single-file community checkpoints; those
-stay on the ComfyUI path.
+Coverage is an **allowlist of ~72 architectures in diffusers/HF format** —
+including FLUX.1/FLUX.2/Kontext, SDXL, and SD3.5. What it does NOT cover:
+single-file (.safetensors) community checkpoints, ComfyUI-format repos, and
+bare LoRA repos — those stay on the ComfyUI path. Many top models are gated on
+HF (FLUX, Krea 2, SD3.5): set HF_TOKEN and accept the license first.
 
 | Model | Task | Works | Peak VRAM | Notes |
 |---|---|---|---|---|
