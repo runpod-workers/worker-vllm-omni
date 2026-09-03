@@ -62,6 +62,23 @@ base64-encoded as `<field>_b64`, e.g. `"image_b64": "<base64 png>"`.
   handler is not a generator on purpose — see the note in `src/handler.py`; for
   real incremental streaming, front the endpoint with a load balancer (below).
 
+## When the engine will not start
+
+Some failures a restart cannot fix: the model is larger than the GPU, the
+repository outgrew the container disk, the weights are in a format the loader
+cannot read. Exiting on those crash-loops the worker, pays for the download and
+the load on every attempt, and shows a traceback rather than a cause.
+
+The worker recognises them and stays up instead, answering every job with the
+reason and the fix:
+
+```json
+{ "error": "Qwen/Qwen-Image-Edit-2511 ran out of GPU memory while loading. This GPU has 44.42 GiB. Redeploy on a larger GPU, or pick a smaller model. ..." }
+```
+
+Anything unrecognised still exits non-zero, because a failed download or a bad
+host is worth another attempt.
+
 ## Environment variables
 
 | Variable | Default | Purpose |

@@ -54,6 +54,11 @@ OMNI_PORT = os.getenv("VLLM_OMNI_PORT", "8091")
 OMNI_BASE_URL = os.getenv("OMNI_BASE_URL", f"http://127.0.0.1:{OMNI_PORT}")
 REQUEST_TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "3600"))
 
+# Set by main.py when the engine failed to start for a reason a restart cannot
+# fix. Every job then answers with it instead of dialling a server that is not
+# there.
+startup_error: Optional[str] = None
+
 # Routes whose upstream contract is multipart/form-data, not JSON.
 MULTIPART_ROUTES = ("/v1/videos", "/v1/images/edits")
 
@@ -126,6 +131,9 @@ def _form_from_body(body: dict) -> aiohttp.FormData:
 
 
 async def handler(job: dict) -> Any:
+    if startup_error:
+        return {"error": startup_error}
+
     job_input = job.get("input") or {}
     try:
         route, method, body = _resolve(job_input)
