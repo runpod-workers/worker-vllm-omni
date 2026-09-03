@@ -4,7 +4,7 @@ Deploy any [vLLM-Omni-supported](https://vllm-omni.readthedocs.io/en/latest/mode
 image, video, audio, or omni model as a Runpod Serverless endpoint with **one
 standardized, OpenAI-compatible request schema** — the same JSON for every
 model family, the way [worker-vllm](https://github.com/runpod-workers/worker-vllm)
-does it for LLMs.
+does it for LLMs!
 
 Set `MODEL_NAME` to a Hugging Face repo id, deploy, and send OpenAI-style
 requests. No workflow JSON, no per-model request formats.
