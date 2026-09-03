@@ -75,7 +75,8 @@ base64-encoded as `<field>_b64`, e.g. `"image_b64": "<base64 png>"`.
 | `OMNI_EXTRA_ARGS` | — | Extra `vllm serve` args, e.g. `--tensor-parallel-size 2` |
 | `VLLM_OMNI_PORT` | `8091` | Loopback port for the API server |
 | `OMNI_STARTUP_TIMEOUT` | `1800` | Seconds to wait for model load before failing |
-| `REQUEST_TIMEOUT` | `3600` | Per-request proxy timeout (video gens are minutes) |
+| `REQUEST_TIMEOUT` | `3600` | Per-request proxy timeout. A backstop for a hung engine, not a budget: keep it above the endpoint's execution timeout so the endpoint is what stops a job |
+| `VLLM_OMNI_VIDEO_SYNC_TIMEOUT` | `86400` | vLLM-Omni's own deadline for `/v1/videos/sync`. Deliberately far above any real request so the **endpoint's execution timeout** is what bounds a job — upstream defaults this to 600s, which cuts off a clip the endpoint was happy to finish |
 | `BASE_PATH` | `/runpod-volume` | Root of the HF cache. Baked into the image env; matches worker-vllm |
 | `HF_HOME` / `HUGGINGFACE_HUB_CACHE` | `$BASE_PATH/huggingface-cache/hub` | Where weights are cached. This exact path is where Runpod mounts a `modelReferences` model, so leaving it alone is what lets a cold start skip the download |
 | `HF_TOKEN` | — | For gated models (e.g. `krea/Krea-2-Turbo`). Not declared in `hub.json`: the Hub deploy form's Hugging Face model field detects gating and writes this itself, the same way worker-vllm does |
