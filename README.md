@@ -4,7 +4,7 @@ Deploy any [vLLM-Omni-supported](https://vllm-omni.readthedocs.io/en/latest/mode
 image, video, audio, or omni model as a Runpod Serverless endpoint with **one
 standardized, OpenAI-compatible request schema** — the same JSON for every
 model family, the way [worker-vllm](https://github.com/runpod-workers/worker-vllm)
-does it for LLMs.
+does it for LLMs!
 
 Set `MODEL_NAME` to a Hugging Face repo id, deploy, and send OpenAI-style
 requests. No workflow JSON, no per-model request formats.
@@ -58,7 +58,9 @@ base64-encoded as `<field>_b64`, e.g. `"image_b64": "<base64 png>"`.
   `{"data_b64", "content_type", "size_bytes"}`. Videos are large — for real
   workloads prefer `task: "video_async"` and poll `/v1/videos/{id}` via the
   generic proxy, or front the endpoint with a load balancer (below).
-- `stream: true` chat bodies stream SSE chunks.
+- `stream: true` chat bodies return the SSE chunks as a list, in order. The
+  handler is not a generator on purpose — see the note in `src/handler.py`; for
+  real incremental streaming, front the endpoint with a load balancer (below).
 
 ## Environment variables
 
@@ -73,9 +75,11 @@ base64-encoded as `<field>_b64`, e.g. `"image_b64": "<base64 png>"`.
 | `OMNI_EXTRA_ARGS` | — | Extra `vllm serve` args, e.g. `--tensor-parallel-size 2` |
 | `VLLM_OMNI_PORT` | `8091` | Loopback port for the API server |
 | `OMNI_STARTUP_TIMEOUT` | `1800` | Seconds to wait for model load before failing |
-| `REQUEST_TIMEOUT` | `3600` | Per-request proxy timeout (video gens are minutes) |
-| `HF_HOME` | `/runpod-volume/huggingface` | Attach a network volume to cache weights across cold starts |
-| `HF_TOKEN` | — | For gated models (e.g. `krea/Krea-2-Turbo`) |
+| `REQUEST_TIMEOUT` | `3600` | Per-request proxy timeout. A backstop for a hung engine, not a budget: keep it above the endpoint's execution timeout so the endpoint is what stops a job |
+| `VLLM_OMNI_VIDEO_SYNC_TIMEOUT` | `86400` | vLLM-Omni's own deadline for `/v1/videos/sync`. Deliberately far above any real request so the **endpoint's execution timeout** is what bounds a job — upstream defaults this to 600s, which cuts off a clip the endpoint was happy to finish |
+| `BASE_PATH` | `/runpod-volume` | Root of the HF cache. Baked into the image env; matches worker-vllm |
+| `HF_HOME` / `HUGGINGFACE_HUB_CACHE` | `$BASE_PATH/huggingface-cache/hub` | Where weights are cached. This exact path is where Runpod mounts a `modelReferences` model, so leaving it alone is what lets a cold start skip the download |
+| `HF_TOKEN` | — | For gated models (e.g. `krea/Krea-2-Turbo`). Not declared in `hub.json`: the Hub deploy form's Hugging Face model field detects gating and writes this itself, the same way worker-vllm does |
 
 ## Model support and sizing (validated 2026-09-02, vllm-omni v0.28.0)
 

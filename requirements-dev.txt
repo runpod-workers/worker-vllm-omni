@@ -1,0 +1,4 @@
+# Test-only; the image installs builder/requirements.txt.
+-r builder/requirements.txt
+pytest>=8
+pytest-asyncio>=0.24
