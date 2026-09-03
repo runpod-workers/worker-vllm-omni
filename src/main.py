@@ -34,6 +34,7 @@ that warning instead of serving the wrong model.
 
 import logging
 import os
+import collections
 import shlex
 import signal
 import subprocess
@@ -44,6 +45,7 @@ import urllib.error
 import urllib.request
 
 import handler
+import startup_errors
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -53,6 +55,10 @@ STARTUP_TIMEOUT = int(os.getenv("OMNI_STARTUP_TIMEOUT", "1800"))
 HEALTH_POLL_INTERVAL = 2  # seconds
 
 LORA_DOWNLOAD_DIR = "/lora"
+
+# Enough of the engine's output to recognise why it died. The traceback that
+# matters is always the last thing it prints.
+recent_output: collections.deque[str] = collections.deque(maxlen=400)
 
 # Emitted by vllm_omni/diffusion/worker/diffusion_worker.py when the pipeline
 # has no LoRA loader mixin: the adapter is skipped and the BASE model serves.
@@ -94,6 +100,7 @@ def pump_output(proc: subprocess.Popen) -> None:
         line = raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else raw
         sys.stdout.write(line)
         sys.stdout.flush()
+        recent_output.append(line)
         if LORA_UNSUPPORTED_MARKER in line:
             lora_unsupported_seen.set()
         elif LORA_LOADED_MARKER in line:
@@ -171,14 +178,28 @@ def wait_for_omni(proc: subprocess.Popen, lora_configured: bool) -> None:
 def main() -> None:
     lora_configured = bool(os.getenv("LORA_REPO") or os.getenv("LORA_PATH"))
     proc = start_omni()
+    startup_error = None
     try:
         wait_for_omni(proc, lora_configured)
-    except RuntimeError:
-        logging.exception("vLLM-Omni failed to start")
-        sys.exit(1)
+    except RuntimeError as exc:
+        logging.error("vLLM-Omni failed to start: %s", exc)
+        startup_error = startup_errors.classify(
+            "".join(recent_output), model=os.getenv("MODEL_NAME")
+        )
+        if startup_error is None:
+            # Nothing recognisable, so let the platform restart us: a failed
+            # download or a bad host is worth another attempt.
+            sys.exit(1)
 
-    # Let the handler fail fast if the server dies mid-flight.
+        # A restart cannot fix this one. Exiting would crash-loop the worker,
+        # paying for the download and the load on every attempt and showing the
+        # user a traceback instead of a cause, so answer jobs with the cause.
+        logging.error("%s", startup_error)
+
+    # Let the handler fail fast if the server dies mid-flight, and answer with
+    # the cause when it never came up at all.
     handler.omni_process = proc
+    handler.startup_error = startup_error
 
     import runpod
 
