@@ -9,26 +9,23 @@
     "containerDiskInGb": 60,
     "gpuIds": "ADA_48_PRO",
     "gpuCount": 1,
-    "allowedCudaVersions": ["12.8", "12.9", "13.0", "13.1", "13.2"],
+    "allowedCudaVersions": [
+      "12.8",
+      "12.9",
+      "13.0",
+      "13.1",
+      "13.2"
+    ],
     "env": [
       {
         "key": "MODEL_NAME",
         "input": {
           "name": "Hugging Face model",
-          "type": "string",
-          "description": "HF repo id of a vLLM-Omni supported model (e.g. Tongyi-MAI/Z-Image-Turbo, Wan-AI/Wan2.2-TI2V-5B-Diffusers)",
+          "type": "huggingface",
+          "description": "Hugging Face repo id of a vLLM-Omni supported model, in diffusers format (e.g. Tongyi-MAI/Z-Image-Turbo, Wan-AI/Wan2.2-TI2V-5B-Diffusers)",
           "default": "Tongyi-MAI/Z-Image-Turbo",
-          "advanced": false
-        }
-      },
-      {
-        "key": "HF_TOKEN",
-        "input": {
-          "name": "Hugging Face token",
-          "type": "string",
-          "description": "Required for gated models (e.g. krea/Krea-2-Turbo)",
-          "default": "",
-          "advanced": true
+          "advanced": false,
+          "required": true
         }
       },
       {
