@@ -81,6 +81,31 @@ class TestMultipart:
         assert "image_b64" not in names
 
 
+class TestStartupFailure:
+    """When the engine never came up, every job says why instead of dialling it."""
+
+    async def test_answers_with_the_cause(self, monkeypatch):
+        monkeypatch.setattr(handler_module, "startup_error", "Ran out of GPU memory.")
+
+        result = await handler({"input": {"prompt": "x"}})
+
+        assert result == {"error": "Ran out of GPU memory."}
+
+    async def test_does_not_reach_the_engine(self, monkeypatch):
+        monkeypatch.setattr(handler_module, "startup_error", "Ran out of GPU memory.")
+        # A dead engine would otherwise be reported instead, which says less.
+        monkeypatch.setattr(handler_module, "_is_omni_alive", lambda: False)
+
+        assert "GPU memory" in (await handler({"input": {"prompt": "x"}}))["error"]
+
+    async def test_a_healthy_start_leaves_jobs_alone(self, monkeypatch):
+        monkeypatch.setattr(handler_module, "startup_error", None)
+        monkeypatch.setattr(handler_module, "_is_omni_alive", lambda: False)
+
+        # Falls through to the normal liveness check rather than short-circuiting.
+        assert "exited" in (await handler({"input": {"prompt": "x"}}))["error"]
+
+
 class TestFailingEarly:
     async def test_an_unroutable_job_is_an_error_not_a_crash(self):
         result = await handler({"input": {"prompt": "x", "task": "nope"}})
