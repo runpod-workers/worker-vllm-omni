@@ -3,7 +3,7 @@
   "description": "Serve image, video, and omni models from Hugging Face behind one OpenAI-compatible API",
   "type": "serverless",
   "category": "image",
-  "iconUrl": "",
+  "iconUrl": "https://registry.npmmirror.com/@lobehub/icons-static-png/latest/files/dark/vllm-color.png",
   "config": {
     "runsOn": "GPU",
     "containerDiskInGb": 60,
