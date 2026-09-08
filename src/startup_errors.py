@@ -21,6 +21,11 @@ _OOM_CAPACITY = re.compile(r"total capacity of ([\d.]+) GiB", re.I)
 _NO_SPACE = re.compile(r"No space left on device|ENOSPC|errno 28", re.I)
 _BAD_HEADER = re.compile(r"Error while deserializing header|SafetensorError", re.I)
 _UNSUPPORTED = re.compile(r"No supported model class found|Unsupported model architecture", re.I)
+# A checkpoint whose layer counts disagree with the pipeline the engine built
+# for it: the tensors it does not recognise are simply never filled.
+_SHAPE_MISMATCH = re.compile(
+    r"weights were not initialized from checkpoint|size mismatch for", re.I
+)
 
 
 def human_size(num_bytes: float) -> str:
@@ -60,6 +65,16 @@ def classify(output: str, model: str | None = None) -> str | None:
         return (
             f"{named} is not an architecture vLLM-Omni can serve. Check the "
             f"supported-models list for a pipeline that covers it."
+        )
+
+    if _SHAPE_MISMATCH.search(output):
+        return (
+            f"{named} does not match the pipeline it declares. Its config names a "
+            f"supported pipeline, but the checkpoint has a different set of layers, "
+            f"so part of the model would be left uninitialised. Pruned and distilled "
+            f"variants do this even though they keep the original pipeline's name. "
+            f"Use the model this one was derived from, or a fine-tune that kept its "
+            f"architecture."
         )
 
     return None
