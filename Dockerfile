@@ -9,8 +9,10 @@ ARG VLLM_OMNI_VERSION
 COPY builder/requirements.txt /requirements.txt
 RUN python3 -m pip install --no-cache-dir -r /requirements.txt
 
-COPY src/handler.py /handler.py
-COPY src/main.py /main.py
+# Every module in src/, not a line per file: main.py imports its siblings, so
+# naming them individually means a new module silently ships missing and the
+# entrypoint dies at import.
+COPY src/*.py /
 
 # Model selection is runtime-only for now: the worker downloads MODEL_NAME from
 # HF at cold start. A bake-the-model build stage like worker-vllm's Option 2 is a
