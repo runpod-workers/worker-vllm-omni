@@ -51,3 +51,22 @@ class TestUnknownFailures:
 
     def test_out_of_memory_wins_over_surrounding_noise(self):
         assert classify(f"Connection reset\n{OOM}\nmore noise") is not None
+
+
+def test_pruned_variant_of_a_supported_pipeline_is_named_as_such():
+    # segmind/SSD-1B: tagged StableDiffusionXLPipeline, but its UNet drops the
+    # mid-block's attention and most of its transformer layers, so the engine
+    # builds a full SDXL and leaves those tensors unfilled.
+    output = (
+        "ValueError: The quantization config is None, and the following weights "
+        "were not initialized from checkpoint: "
+        "{'unet.mid_block.attentions.0.proj_in.weight'}"
+    )
+    message = classify(output, "segmind/SSD-1B")
+    assert message is not None
+    assert "segmind/SSD-1B" in message
+    assert "different set of layers" in message
+
+
+def test_a_shape_mismatch_is_reported_rather_than_retried():
+    assert classify("size mismatch for unet.conv_in.weight", "org/model") is not None
