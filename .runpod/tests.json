@@ -29,7 +29,7 @@
     "env": [
       {
         "key": "MODEL_NAME",
-        "value": "Tongyi-MAI/Z-Image-Turbo"
+        "value": "segmind/SSD-1B"
       }
     ],
     "allowedCudaVersions": ["12.8", "12.9", "13.0", "13.1", "13.2"]
