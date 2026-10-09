@@ -48,6 +48,8 @@ from typing import Any, Optional, Tuple
 
 import aiohttp
 
+from startup_errors import classify_runtime_error
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 OMNI_PORT = os.getenv("VLLM_OMNI_PORT", "8091")
@@ -164,6 +166,9 @@ async def handler(job: dict) -> Any:
 
             if resp.status >= 400:
                 text = await resp.text()
+                runtime_error = classify_runtime_error(text)
+                if runtime_error:
+                    return {"error": runtime_error, "status": resp.status}
                 try:
                     return {"error": json.loads(text), "status": resp.status}
                 except json.JSONDecodeError:

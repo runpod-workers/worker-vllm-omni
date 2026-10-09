@@ -23,6 +23,12 @@ _BAD_HEADER = re.compile(r"Error while deserializing header|SafetensorError", re
 _UNSUPPORTED = re.compile(r"No supported model class found|Unsupported model architecture", re.I)
 # A checkpoint whose layer counts disagree with the pipeline the engine built
 # for it: the tensors it does not recognise are simply never filled.
+# A quantisation config the engine cannot parse. `BitsAndBytesConfig.to_dict()`
+# emits the private backing fields alongside the public ones, and the engine
+# splats the whole dict into a dataclass that declares only the public names.
+_QUANT_CONFIG = re.compile(
+    r"unexpected keyword argument '_load_in|DiffusionBitsAndBytesConfig", re.I
+)
 _SHAPE_MISMATCH = re.compile(
     r"weights were not initialized from checkpoint|size mismatch for", re.I
 )
@@ -67,6 +73,14 @@ def classify(output: str, model: str | None = None) -> str | None:
             f"supported-models list for a pipeline that covers it."
         )
 
+    if _QUANT_CONFIG.search(output):
+        return (
+            f"{named} is quantised in a format this engine version cannot read. Its "
+            f"config stores the bitsandbytes settings under private field names, and "
+            f"the loader rejects them outright. Deploy the unquantised model it was "
+            f"derived from, on a GPU large enough to hold it."
+        )
+
     if _SHAPE_MISMATCH.search(output):
         return (
             f"{named} does not match the pipeline it declares. Its config names a "
@@ -75,6 +89,25 @@ def classify(output: str, model: str | None = None) -> str | None:
             f"variants do this even though they keep the original pipeline's name. "
             f"Use the model this one was derived from, or a fine-tune that kept its "
             f"architecture."
+        )
+
+    return None
+
+
+def classify_runtime_error(response_text: str) -> str | None:
+    """One actionable sentence for a request the engine could not serve.
+
+    Distinct from `classify`: the engine is healthy and only this request
+    failed, so nothing is exiting and the worker keeps taking jobs. What it
+    replaces is the raw text, which for an OOM is several paragraphs of
+    allocator state -- too long to read and, as the platform rejects an
+    oversized result, sometimes too long to deliver at all.
+    """
+    if _OOM.search(response_text):
+        return (
+            "Ran out of GPU memory while generating. The model loaded but left too "
+            "little room to run: lower the resolution, the frame count or the number "
+            "of steps, or redeploy on a larger GPU."
         )
 
     return None

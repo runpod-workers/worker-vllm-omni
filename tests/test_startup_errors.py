@@ -1,7 +1,7 @@
 """Which engine failures are worth answering, and which are worth a restart."""
 import pytest
 
-from startup_errors import classify
+from startup_errors import classify, classify_runtime_error
 
 OOM = """
 [rank0] torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 108.00 MiB.
@@ -70,3 +70,35 @@ def test_pruned_variant_of_a_supported_pipeline_is_named_as_such():
 
 def test_a_shape_mismatch_is_reported_rather_than_retried():
     assert classify("size mismatch for unet.conv_in.weight", "org/model") is not None
+
+
+def test_bitsandbytes_config_is_named_rather_than_crash_looped():
+    # ovedrive/Qwen-Image-Edit-2511-4bit: BitsAndBytesConfig.to_dict() emits the
+    # private backing fields, and the engine's dataclass declares only the
+    # public ones, so it exits before serving anything.
+    output = (
+        "TypeError: DiffusionBitsAndBytesConfig.__init__() got an unexpected "
+        "keyword argument '_load_in_4bit'"
+    )
+    message = classify(output, "ovedrive/Qwen-Image-Edit-2511-4bit")
+    assert message is not None
+    assert "ovedrive/Qwen-Image-Edit-2511-4bit" in message
+    assert "quantised" in message
+
+
+def test_runtime_oom_is_shortened_to_something_readable():
+    # Wan 2.2 I2V A14B loads into 64GB of an 80GB card and then fails here. The
+    # raw text is several paragraphs of allocator state.
+    raw = (
+        "RuntimeError: CUDA out of memory. Tried to allocate 1.94 GiB. GPU 0 has a "
+        "total capacity of 79.18 GiB of which 1.55 GiB is free. Including non-PyTorch "
+        "memory, this process has 76.90 GiB memory in use..."
+    )
+    message = classify_runtime_error(raw)
+    assert message is not None
+    assert len(message) < len(raw)
+    assert "larger GPU" in message
+
+
+def test_a_request_that_failed_for_another_reason_is_passed_through():
+    assert classify_runtime_error('{"error": "size must be WxH"}') is None

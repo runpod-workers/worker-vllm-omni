@@ -100,7 +100,7 @@ host is worth another attempt.
 
 ## Model support and sizing (validated 2026-09-02, vllm-omni v0.28.0)
 
-Coverage is an **allowlist of ~72 architectures in diffusers/HF format** —
+Coverage is an **allowlist of 48 architectures in diffusers/HF format** —
 including FLUX.1/FLUX.2/Kontext, SDXL, and SD3.5. What it does NOT cover:
 single-file (.safetensors) community checkpoints, ComfyUI-format repos, and
 bare LoRA repos — those stay on the ComfyUI path. Many top models are gated on
