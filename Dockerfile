@@ -1,7 +1,7 @@
 # Worker image = official vLLM-Omni image + RunPod serverless wrapper.
 # vLLM-Omni upgrades are a single build ARG:
-#   docker buildx build --build-arg VLLM_OMNI_VERSION=v0.28.0 ...
-ARG VLLM_OMNI_VERSION=v0.28.0
+#   docker buildx build --build-arg VLLM_OMNI_VERSION=v0.30.0 ...
+ARG VLLM_OMNI_VERSION=v0.30.0
 FROM vllm/vllm-omni:${VLLM_OMNI_VERSION}
 ARG VLLM_OMNI_VERSION
 
