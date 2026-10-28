@@ -3,3 +3,8 @@
 runpod~=1.12.0
 aiohttp>=3.9
 huggingface-hub>=0.24
+# Floor, not a pin: the base image ships its own certifi and pip leaves an
+# installed package alone if it already satisfies us, so without this the image
+# keeps whatever the base was built with. Below 2026.10.19 the bundle trusts the
+# compromised emSign ECC Root CA - G3 (GHSA-6q48-6c7w-9gw2).
+certifi>=2026.10.19
